@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EscritaDynamoDB",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:*:table/TelemetriaTratores",
+      "Condition": {}
+    },
+    {
+      "Sid": "UploadImagensS3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::projeto-trator-gugue-12345/imagens/*"
+    },
+    {
+      "Sid": "VerificarBucketS3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::projeto-trator-gugue-12345",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "imagens/*"
+          ]
+        }
+      }
+    }
+  ]
+}

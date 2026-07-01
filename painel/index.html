@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Painel de Telemetria em Tempo Real para Frota de Tratores Autônomos — Fatec Bebedouro">
+    <title>AgroCloud | Painel de Telemetria — Fatec Bebedouro</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- AWS SDK para JavaScript -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1408.0.min.js"></script>
+    <!-- Estilos -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+
+        <!-- ══ BARRA LATERAL ══════════════════════════════════════════════════ -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-leaf"></i>
+                <h2>Agro<span>Cloud</span></h2>
+            </div>
+
+            <nav>
+                <ul>
+                    <li id="nav-painel"      class="active"><i class="fa-solid fa-border-all"></i>     Painel Geral</li>
+                    <li id="nav-frota"       ><i class="fa-solid fa-tractor"></i>           Frota de Tratores</li>
+                    <li id="nav-temperatura" ><i class="fa-solid fa-temperature-half"></i>  Temperatura</li>
+                    <li id="nav-rpm"         ><i class="fa-solid fa-gauge-high"></i>        RPM</li>
+                    <li id="nav-gps"         ><i class="fa-solid fa-location-dot"></i>      GPS</li>
+                    <li id="nav-combustivel" ><i class="fa-solid fa-gas-pump"></i>          Combustível</li>
+                    <li id="nav-drones"      ><i class="fa-solid fa-camera"></i>            Imagens S3</li>
+                </ul>
+            </nav>
+
+            <!-- Status de Conexão AWS -->
+            <div class="connection-status">
+                <div class="status-indicator" id="status-dot"></div>
+                <span id="aws-status">Conectando AWS...</span>
+            </div>
+
+            <!-- Info da infraestrutura -->
+            <div class="infra-info">
+                <p><i class="fa-solid fa-database"></i> TelemetriaTratores</p>
+                <p><i class="fa-brands fa-aws"></i> us-east-1</p>
+                <p><i class="fa-solid fa-bucket"></i> projeto-trator-gugue</p>
+            </div>
+        </aside>
+
+        <!-- ══ CONTEÚDO PRINCIPAL ═════════════════════════════════════════════ -->
+        <main class="main-content">
+
+            <!-- Cabeçalho -->
+            <header class="header">
+                <div class="header-info">
+                    <h1>Telemetria de Tratores Autônomos</h1>
+                    <p>
+                        Frota: <span class="badge">3 Tratores</span> &nbsp;|&nbsp;
+                        Origem: <span class="region-text">DynamoDB · us-east-2</span> &nbsp;|&nbsp;
+                        <span id="last-update" style="color: var(--text-muted); font-size: 0.9em;">Aguardando dados...</span>
+                    </p>
+                </div>
+                <div class="user-profile">
+                    <div class="user-text">
+                        <strong>Agrônomo</strong>
+                        <span>Fatec Bebedouro</span>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=Agro&background=16a34a&color=fff" alt="Perfil do Agrônomo">
+                </div>
+            </header>
+
+            <!-- ── TAB 0: PAINEL GERAL ───────────────────────────────────────── -->
+            <div class="tab-content active-tab" id="tab-painel">
+
+                <!-- KPI Cards (último registro de qualquer trator) -->
+                <section class="kpi-cards">
+                    <div class="card kpi-card">
+                        <div class="card-icon-wrapper temp"><i class="fa-solid fa-temperature-half"></i></div>
+                        <div class="card-data">
+                            <h3>Temp. Máxima Frota</h3>
+                            <p id="temp-value">-- °C</p>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card-icon-wrapper rpm"><i class="fa-solid fa-gauge-high"></i></div>
+                        <div class="card-data">
+                            <h3>RPM Médio Frota</h3>
+                            <p id="rpm-value">-- RPM</p>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card-icon-wrapper gps"><i class="fa-solid fa-location-dot"></i></div>
+                        <div class="card-data">
+                            <h3>Tratores Ativos</h3>
+                            <p id="ativos-value">-- / 3</p>
+                        </div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="card-icon-wrapper fuel"><i class="fa-solid fa-gas-pump"></i></div>
+                        <div class="card-data">
+                            <h3>Combustível Mínimo</h3>
+                            <p id="fuel-value">-- %</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Status da última atualização -->
+                <div class="card" style="padding: 16px 24px;">
+                    <p style="color: var(--text-muted); font-size: 0.9em;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--primary-color);"></i>
+                        &nbsp;Selecione uma aba no menu lateral para ver os gráficos em tempo real.
+                        O painel se atualiza automaticamente a cada <strong>10 segundos</strong> via AWS DynamoDB.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ── TAB 1: FROTA DE TRATORES ────────────────────────────────── -->
+            <div class="tab-content" id="tab-frota" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-tractor"></i> Última Telemetria por Trator</h2>
+                <div class="card" style="overflow-x: auto; padding: 0;">
+                    <table class="telemetria-table">
+                        <thead>
+                            <tr>
+                                <th>Trator</th>
+                                <th>Horário (UTC)</th>
+                                <th><i class="fa-solid fa-temperature-half"></i> Temp. Motor</th>
+                                <th><i class="fa-solid fa-gauge-high"></i> RPM</th>
+                                <th><i class="fa-solid fa-gas-pump"></i> Combustível</th>
+                                <th><i class="fa-solid fa-location-dot"></i> Latitude</th>
+                                <th>Longitude</th>
+                                <th><i class="fa-solid fa-tachometer-alt"></i> Vel. (km/h)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-tratores">
+                            <tr><td colspan="9" style="text-align:center; padding: 24px; color: var(--text-muted);">Carregando dados do DynamoDB...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Cards individuais de cada trator -->
+                <div class="frota-cards" id="frota-cards">
+                    <!-- Gerado dinamicamente pelo JS -->
+                </div>
+            </div>
+
+            <!-- ── TAB 2: TEMPERATURA ──────────────────────────────────────── -->
+            <div class="tab-content" id="tab-temperatura" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-temperature-half"></i> Histórico de Temperatura — Todos os Tratores</h2>
+                <div class="trator-select-bar">
+                    <label>Filtrar trator:</label>
+                    <select id="trator-select-temp">
+                        <option value="TRATOR-001">TRATOR-001</option>
+                        <option value="TRATOR-002">TRATOR-002</option>
+                        <option value="TRATOR-003">TRATOR-003</option>
+                    </select>
+                </div>
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Temperatura do Motor (°C)</h3>
+                        <span class="live-badge"><i class="fa-solid fa-circle" style="font-size:0.6em;"></i> Ao Vivo</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                    <p class="chart-note">Faixa normal: 80–110 °C. Acima de 105°C: alerta de superaquecimento.</p>
+                </div>
+            </div>
+
+            <!-- ── TAB 3: RPM ──────────────────────────────────────────────── -->
+            <div class="tab-content" id="tab-rpm" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-gauge-high"></i> Histórico de Rotação (RPM)</h2>
+                <div class="trator-select-bar">
+                    <label>Filtrar trator:</label>
+                    <select id="trator-select-rpm">
+                        <option value="TRATOR-001">TRATOR-001</option>
+                        <option value="TRATOR-002">TRATOR-002</option>
+                        <option value="TRATOR-003">TRATOR-003</option>
+                    </select>
+                </div>
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Rotação do Motor (RPM)</h3>
+                        <span class="live-badge"><i class="fa-solid fa-circle" style="font-size:0.6em;"></i> Ao Vivo</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="rpmChart"></canvas>
+                    </div>
+                    <p class="chart-note">Faixa operacional: 1.200–2.600 RPM.</p>
+                </div>
+            </div>
+
+            <!-- ── TAB 4: GPS ──────────────────────────────────────────────── -->
+            <div class="tab-content" id="tab-gps" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-location-dot"></i> Posições GPS dos Tratores</h2>
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Dispersão de Coordenadas (Lat × Lng)</h3>
+                        <span class="live-badge"><i class="fa-solid fa-circle" style="font-size:0.6em;"></i> Ao Vivo</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="gpsChart"></canvas>
+                    </div>
+                    <p class="chart-note">Região de Bebedouro/SP. Cada ponto representa uma leitura de trator.</p>
+                </div>
+            </div>
+
+            <!-- ── TAB 5: COMBUSTÍVEL ─────────────────────────────────────── -->
+            <div class="tab-content" id="tab-combustivel" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-gas-pump"></i> Nível de Combustível</h2>
+                <div class="trator-select-bar">
+                    <label>Filtrar trator:</label>
+                    <select id="trator-select-fuel">
+                        <option value="TRATOR-001">TRATOR-001</option>
+                        <option value="TRATOR-002">TRATOR-002</option>
+                        <option value="TRATOR-003">TRATOR-003</option>
+                    </select>
+                </div>
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Nível de Combustível (%)</h3>
+                        <span class="live-badge"><i class="fa-solid fa-circle" style="font-size:0.6em;"></i> Ao Vivo</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="fuelChart"></canvas>
+                    </div>
+                    <p class="chart-note">Abaixo de 25%: alerta de reabastecimento necessário.</p>
+                </div>
+            </div>
+
+            <!-- ── TAB 6: IMAGENS S3 ──────────────────────────────────────── -->
+            <div class="tab-content" id="tab-drones" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-camera"></i> Imagens dos Drones — Amazon S3</h2>
+
+                <!-- Resumo do bucket -->
+                <div class="card" style="padding: 16px 24px; margin-bottom: 16px;">
+                    <p style="font-size: 0.9em; color: var(--text-muted);">
+                        <i class="fa-brands fa-aws" style="color: #FF9900;"></i>
+                        &nbsp;Bucket: <strong>s3://projeto-trator-gugue-12345/imagens/</strong>
+                        &nbsp;|&nbsp; Organização: <code>imagens/&lt;trator&gt;/&lt;data&gt;/&lt;drone&gt;/&lt;uuid&gt;.jpg</code>
+                    </p>
+                </div>
+
+                <!-- Galeria de imagens dos drones -->
+                <div class="galeria-drones">
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-1">
+                            <span class="drone-icone">🌾</span>
+                            <span class="drone-overlay">DRONE-A1</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-A1 · TRATOR-001</strong>
+                            <span>Talhão Norte · Soja</span>
+                            <span class="drone-path">imagens/TRATOR-001/2025-06-10/DRONE-A1/</span>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-2">
+                            <span class="drone-icone">🌱</span>
+                            <span class="drone-overlay">DRONE-A2</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-A2 · TRATOR-002</strong>
+                            <span>Talhão Sul · Milho</span>
+                            <span class="drone-path">imagens/TRATOR-002/2025-06-10/DRONE-A2/</span>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-3">
+                            <span class="drone-icone">🌿</span>
+                            <span class="drone-overlay">DRONE-B1</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-B1 · TRATOR-003</strong>
+                            <span>Área Leste · Cana</span>
+                            <span class="drone-path">imagens/TRATOR-003/2025-06-10/DRONE-B1/</span>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-4">
+                            <span class="drone-icone">🪴</span>
+                            <span class="drone-overlay">DRONE-A1</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-A1 · TRATOR-001</strong>
+                            <span>Reservatório Norte</span>
+                            <span class="drone-path">imagens/TRATOR-001/2025-06-10/DRONE-A1/</span>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-5">
+                            <span class="drone-icone">🌻</span>
+                            <span class="drone-overlay">DRONE-B1</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-B1 · TRATOR-003</strong>
+                            <span>Área Leste · Girassol</span>
+                            <span class="drone-path">imagens/TRATOR-003/2025-06-10/DRONE-B1/</span>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <div class="drone-foto drone-foto-6">
+                            <span class="drone-icone">🌾</span>
+                            <span class="drone-overlay">DRONE-A2</span>
+                        </div>
+                        <div class="drone-meta">
+                            <strong>DRONE-A2 · TRATOR-002</strong>
+                            <span>Talhão Oeste · Trigo</span>
+                            <span class="drone-path">imagens/TRATOR-002/2025-06-10/DRONE-A2/</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Info sobre o upload -->
+                <div class="card" style="padding: 16px 24px; margin-top: 16px;">
+                    <p style="font-size: 0.85em; color: var(--text-muted);">
+                        <i class="fa-solid fa-lock" style="color: var(--primary-color);"></i>
+                        &nbsp;Todas as imagens são armazenadas com <strong>acesso público bloqueado</strong>.
+                        O acesso é controlado via IAM (permissão <code>s3:PutObject</code> apenas para os scripts dos drones).
+                        Versionamento habilitado para proteção contra sobrescrita.
+                    </p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

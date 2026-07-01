@@ -1,0 +1,491 @@
+/* =============================================================================
+   AgroCloud — Painel de Telemetria de Tratores
+   Projeto: Fatec Bebedouro
+   Tema: Verde Agrícola + Dark Mode moderno
+   ============================================================================= */
+
+/* ── Importação de fonte (via HTML) + Reset ─────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ── Variáveis de design ────────────────────────────────────────────────────── */
+:root {
+    /* Cores principais */
+    --primary:        #16a34a;
+    --primary-light:  #dcfce7;
+    --primary-dark:   #15803d;
+
+    /* Backgrounds */
+    --bg-main:        #f0f4f1;
+    --bg-card:        #ffffff;
+    --bg-sidebar:     #111827;
+
+    /* Texto */
+    --text-main:      #111827;
+    --text-muted:     #6b7280;
+    --text-sidebar:   #d1d5db;
+    --text-sidebar-active: #ffffff;
+
+    /* Bordas e sombras */
+    --border:         #e5e7eb;
+    --shadow-sm:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md:      0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+    --shadow-lg:      0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+
+    /* Cores dos KPIs */
+    --color-temp:     #ef4444;
+    --color-temp-bg:  #fee2e2;
+    --color-rpm:      #0284c7;
+    --color-rpm-bg:   #e0f2fe;
+    --color-gps:      #16a34a;
+    --color-gps-bg:   #dcfce7;
+    --color-fuel:     #d97706;
+    --color-fuel-bg:  #fef3c7;
+
+    /* Alertas */
+    --danger:         #dc2626;
+    --warning:        #f59e0b;
+    --success:        #16a34a;
+}
+
+/* ── Body e container raiz ─────────────────────────────────────────────────── */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+/* =============================================================================
+   SIDEBAR
+   ============================================================================= */
+.sidebar {
+    width: 240px;
+    min-width: 240px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    gap: 8px;
+    overflow-y: auto;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    margin-bottom: 28px;
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: white;
+}
+.logo i { color: var(--primary); font-size: 1.6rem; }
+.logo span { color: var(--primary); }
+
+/* Navegação */
+nav ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+nav li {
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-sidebar);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+nav li i { width: 16px; text-align: center; }
+nav li:hover { background-color: rgba(255,255,255,0.08); color: white; }
+nav li.active { background-color: var(--primary); color: white; font-weight: 600; }
+
+/* Status de conexão */
+.connection-status {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: var(--text-sidebar);
+    font-weight: 600;
+}
+.status-indicator {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background-color: #6b7280;
+    flex-shrink: 0;
+    transition: background-color 0.3s;
+}
+.status-indicator.online  { background-color: var(--primary); box-shadow: 0 0 6px var(--primary); }
+.status-indicator.offline { background-color: var(--danger); }
+
+/* Info da infra */
+.infra-info {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.infra-info p { display: flex; align-items: center; gap: 6px; }
+.infra-info i { width: 14px; color: #374151; }
+
+/* =============================================================================
+   CONTEÚDO PRINCIPAL
+   ============================================================================= */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 28px;
+    gap: 20px;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* HEADER */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.header-info h1 {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+.header-info p { color: var(--text-muted); font-size: 0.88rem; }
+
+.badge {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+.region-text { font-weight: 600; color: var(--text-main); }
+
+.user-profile { display: flex; align-items: center; gap: 12px; }
+.user-text { text-align: right; }
+.user-text strong { display: block; font-size: 0.92rem; }
+.user-text span { font-size: 0.8rem; color: var(--text-muted); }
+.user-profile img {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-light);
+}
+
+/* TABS */
+.tab-content { display: flex; flex-direction: column; gap: 16px; }
+
+/* TÍTULOS DE SEÇÃO */
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-title i { color: var(--primary); }
+
+/* =============================================================================
+   CARDS
+   ============================================================================= */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+/* KPI Cards */
+.kpi-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+.kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+}
+
+.card-icon-wrapper {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+.kpi-card:hover .card-icon-wrapper { transform: scale(1.08); }
+
+.card-icon-wrapper.temp { background: var(--color-temp-bg); color: var(--color-temp); }
+.card-icon-wrapper.rpm  { background: var(--color-rpm-bg);  color: var(--color-rpm); }
+.card-icon-wrapper.gps  { background: var(--color-gps-bg);  color: var(--color-gps); }
+.card-icon-wrapper.fuel { background: var(--color-fuel-bg); color: var(--color-fuel); }
+
+.card-data h3 {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+.card-data p {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.1;
+}
+
+/* Card Header */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.card-header h3 { font-size: 1rem; font-weight: 700; }
+.live-badge {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 5px;
+}
+
+/* =============================================================================
+   TABELA DE FROTA
+   ============================================================================= */
+.telemetria-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+.telemetria-table thead {
+    background: var(--bg-sidebar);
+    color: white;
+}
+.telemetria-table thead th {
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+.telemetria-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+.telemetria-table tbody tr:hover { background: #f9fafb; }
+.telemetria-table tbody td { padding: 11px 14px; }
+
+/* Status badges da tabela */
+.status-badge {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.status-badge.trabalhando { background: #dcfce7; color: #15803d; }
+.status-badge.em_transito { background: #fef3c7; color: #92400e; }
+.status-badge.parado      { background: #fee2e2; color: #991b1b; }
+
+/* Cards individuais da frota */
+.frota-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+}
+.frota-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+}
+.frota-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.frota-card-header strong { font-size: 1rem; font-weight: 700; }
+.frota-card-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.frota-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.frota-metric .label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+.frota-metric .value { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+
+/* =============================================================================
+   GRÁFICOS
+   ============================================================================= */
+.chart-card { display: flex; flex-direction: column; }
+
+.chart-wrapper {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+    max-height: 380px;
+}
+canvas { max-height: 380px; }
+
+.chart-note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+/* Seletor de trator para os gráficos */
+.trator-select-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.trator-select-bar select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    background: var(--bg-card);
+    color: var(--text-main);
+    cursor: pointer;
+    outline: none;
+}
+.trator-select-bar select:focus { border-color: var(--primary); }
+
+/* =============================================================================
+   GALERIA DE DRONES (TAB S3)
+   ============================================================================= */
+.galeria-drones {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.drone-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.drone-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+.drone-foto {
+    width: 100%; height: 140px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.drone-foto-1 { background: linear-gradient(135deg, #a7f3d0 0%, #34d399 50%, #059669 100%); }
+.drone-foto-2 { background: linear-gradient(135deg, #bbf7d0 0%, #4ade80 50%, #16a34a 100%); }
+.drone-foto-3 { background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 50%, #10b981 100%); }
+.drone-foto-4 { background: linear-gradient(135deg, #a3e635 0%, #65a30d 50%, #3f6212 100%); }
+.drone-foto-5 { background: linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #b45309 100%); }
+.drone-foto-6 { background: linear-gradient(135deg, #bfdbfe 0%, #60a5fa 50%, #1d4ed8 100%); }
+
+.drone-icone { font-size: 2.8rem; z-index: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+
+.drone-overlay {
+    position: absolute;
+    bottom: 6px; right: 8px;
+    background: rgba(0,0,0,0.4);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    backdrop-filter: blur(4px);
+}
+
+.drone-meta {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.drone-meta strong { font-size: 0.88rem; color: var(--text-main); }
+.drone-meta span   { font-size: 0.8rem;  color: var(--text-muted); }
+.drone-path {
+    font-size: 0.72rem !important;
+    color: #9ca3af !important;
+    font-family: monospace;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* =============================================================================
+   SCROLLBAR CUSTOMIZADA
+   ============================================================================= */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* =============================================================================
+   RESPONSIVIDADE BÁSICA
+   ============================================================================= */
+@media (max-width: 1200px) {
+    .kpi-cards { grid-template-columns: repeat(2, 1fr); }
+    .frota-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+    .sidebar { width: 200px; min-width: 200px; }
+    .main-content { padding: 16px; }
+    .kpi-cards { grid-template-columns: repeat(2, 1fr); }
+}
